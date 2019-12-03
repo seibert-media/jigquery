@@ -1,0 +1,6 @@
+.auth.json
+.auth.enc.json
+.env
+.env.yaml
+.env-local
+.schema.json

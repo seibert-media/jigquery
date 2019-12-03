@@ -1,0 +1,8 @@
+[
+  { "name": "issue", "type": "string", "path": "key", "required": true },
+  { "name": "status", "type": "string", "path": "fields.status.name" },
+  { "name": "created", "type": "timestamp", "path": "fields.created" },
+  { "name": "updated", "type": "timestamp", "path": "fields.updated" },
+  { "name": "resolved", "type": "timestamp", "path": "fields.resolutiondate" },
+  { "name": "resolution", "type": "string", "path": "fields.resolution" }
+]
