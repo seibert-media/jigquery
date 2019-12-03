@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	kms "cloud.google.com/go/kms/apiv1"
 	"github.com/seibert-media/golibs/log"
@@ -74,4 +75,40 @@ func EncodeJiraAuth(ctx context.Context, resource string, auth *JiraAuth) (strin
 	}
 
 	return base64.StdEncoding.EncodeToString(resp.GetCiphertext()), nil
+}
+
+// CreateKeys in the project
+func CreateKeys(ctx context.Context, project string, keyRing, key string) error {
+	location := fmt.Sprintf("projects/%s/locations/global", project)
+
+	client, err := kms.NewKeyManagementClient(ctx)
+	if err != nil {
+		return err
+	}
+
+	ringReq := &kmspb.CreateKeyRingRequest{
+		Parent:    location,
+		KeyRingId: keyRing,
+	}
+
+	if _, err := client.CreateKeyRing(ctx, ringReq); err != nil {
+		return err
+	}
+
+	keyReq := &kmspb.CreateCryptoKeyRequest{
+		Parent:      fmt.Sprintf("%s/keyRings/%s", location, keyRing),
+		CryptoKeyId: key,
+		CryptoKey: &kmspb.CryptoKey{
+			Purpose: kmspb.CryptoKey_ENCRYPT_DECRYPT,
+			VersionTemplate: &kmspb.CryptoKeyVersionTemplate{
+				Algorithm: kmspb.CryptoKeyVersion_GOOGLE_SYMMETRIC_ENCRYPTION,
+			},
+		},
+	}
+
+	if _, err = client.CreateCryptoKey(ctx, keyReq); err != nil {
+		return err
+	}
+
+	return nil
 }

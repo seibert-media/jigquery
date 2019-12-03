@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/seibert-media/jigquery/function"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/seibert-media/golibs/log"
 	"go.uber.org/zap"
@@ -30,10 +33,10 @@ type JiraAuth struct {
 func GenerateSecret(ctx context.Context, project string) (JiraAuth, error) {
 
 	if len(*keyRing) < 1 {
-		return JiraAuth{}, errors.New("missing -keyRing")
+		*keyRing = "jigquery"
 	}
 	if len(*key) < 1 {
-		return JiraAuth{}, errors.New("missing -key")
+		*key = "jigquery"
 	}
 
 	resource := fmt.Sprintf("projects/%s/locations/global/keyRings/%s/cryptoKeys/%s", project, *keyRing, *key)
@@ -67,9 +70,19 @@ func GenerateSecret(ctx context.Context, project string) (JiraAuth, error) {
 	jiraAuth.Password = scanner.Text()
 
 	secret, err := function.EncodeJiraAuth(ctx, resource, jiraAuth)
-	if err != nil {
+	if err != nil && !isNotFound(err) {
 		log.From(ctx).Error("encoding jira auth", zap.Error(err))
 		return JiraAuth{}, err
+	}
+
+	if isNotFound(err) {
+		if err := function.CreateKeys(ctx, project, *keyRing, *key); err != nil {
+			return JiraAuth{}, err
+		}
+		secret, err = function.EncodeJiraAuth(ctx, resource, jiraAuth)
+		if err != nil {
+			return JiraAuth{}, err
+		}
 	}
 
 	auth := JiraAuth{
@@ -86,4 +99,20 @@ func GenerateSecret(ctx context.Context, project string) (JiraAuth, error) {
 	}
 
 	return auth, nil
+}
+
+func isNotFound(err error) bool {
+	if gerr, ok := err.(*googleapi.Error); ok {
+		if gerr.Code == http.StatusNotFound {
+			return true
+		}
+	}
+
+	if st, ok := status.FromError(err); ok {
+		if st.Code() == codes.NotFound {
+			return true
+		}
+	}
+
+	return false
 }

@@ -71,15 +71,16 @@ func Deploy(ctx context.Context, project string) error {
 
 	var auth JiraAuth
 	authFile, err := os.OpenFile("./.auth.json", os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	defer authFile.Close()
+	if err == nil {
+		defer authFile.Close()
 
-	log.From(ctx).Debug("reading auth file", zap.String("path", "./.auth.json"))
-	if err := json.NewDecoder(authFile).Decode(&auth); err != nil {
-		log.From(ctx).Error("reading auth file", zap.Error(err), zap.String("path", "./.auth.json"))
-		return err
+		log.From(ctx).Debug("reading auth file", zap.String("path", "./.auth.json"))
+		if err := json.NewDecoder(authFile).Decode(&auth); err != nil {
+			log.From(ctx).Error("reading auth file", zap.Error(err), zap.String("path", "./.auth.json"))
+			return err
+		}
+	} else {
+		log.From(ctx).Warn("reading auth file", zap.Error(err))
 	}
 
 	if len(auth.Resource) < 1 || len(auth.Secret) < 1 {
@@ -199,7 +200,7 @@ Function: %s
 Status:	https://console.cloud.google.com/functions/list?project=%s
 Logs:	https://console.cloud.google.com/logs/viewer?project=%s&resource=cloud_function%%2Ffunction_name%%2F%s
 Scheduler: https://console.cloud.google.com/cloudscheduler?project=%s
-	`, functionName, project, project, functionName, project)
+`, functionName, project, project, functionName, project)
 
 	return nil
 }

@@ -1,32 +1,37 @@
 # Jira to BigQuery [JigQuery]
 
-<author name="//SEIBERT/MEDIA GmbH"
+<walkthrough-author name="//SEIBERT/MEDIA GmbH"
 repositoryUrl="https://github.com/seibert-media/jigquery">
-</author>
+</walkthrough-author>
 
 ## Select a Project
 
-<project-setup></project-setup>
+<walkthrough-project-setup></walkthrough-project-setup>
+
+## Prepare Cloud Shell
+
+Press this button, to open the Cloud Shell:
+<walkthrough-open-cloud-shell-button/>
+
+Then run the following snippet, to set your Project ID:
+
+```bash
+gcloud config set project {{project-id}}
+```
 
 ## Enable the required APIs
 
-<enable-apis apis="cloudfunctions.googleapis.com,cloudkms.googleapis.com,cloudscheduler.googleapis.com,pubsub.googleapis.com,storage-api.googleapis.com,storage-component.googleapis.com,bigquerystorage.googleapis.com,cloudbuild.googleapis.com,bigquery-json.googleapis.com"></enable-apis>
-
-## Open Cloud Shell
-
-<open-cloud-shell-button></open-cloud-shell-button>
+<walkthrough-enable-apis apis="cloudfunctions.googleapis.com,cloudkms.googleapis.com,cloudscheduler.googleapis.com,storage_component,storage_api,bigquery,pubsub"></walkthrough-enable-apis>
 
 ## Create your Schema
 
 First, create a basic schema file from the example:
 
-```
-cp ./.example.schema.json ./.schema.json
+```bash
+cp ./.example.schema.json ./.schema.json && cloudshell_open --open_in_editor ./.schema.json
 ```
 
-Then open the file in the Editor:
-
-<editor-open-file filePath="./.schema.json"></editor-open-file>
+This should copy the example and open the resulting file in your Cloud Shell Editor.
 
 ## Edit your Schema
 
@@ -44,7 +49,7 @@ It consists of a JSON Array containing field definitions, that look like this:
 ```
 
 You can read more about the schema in the README.md:
-<editor-open-file filePath="./README.md"></editor-open-file>
+<walkthrough-editor-open-file filePath="./README.md"></walkthrough-editor-open-file>
 
 **Note:** Comments are not allowed in JSON, so please do not copy this example without removing them first. A comment is defined like `// comment`.
 
@@ -62,8 +67,10 @@ The BigQuery Dataset and Table should not exist, as the Function will create the
 **Note:** Your Jira credentials will be encrypted with Google Cloud KMS and eventually deployed to the Cloud Function environment.
 They get stored in the same **encrypted** form in your Cloud Shell environment but can only be decrypted by actors with the respective access to your KMS KeyRing and Key.
 
-After it was provided with all required information, the program will encrypt your Jira crednetials, deploy the Cloud Function and create the respective Pub/Sub and Cloud Scheduler instances to run it once a day.
+For encrypting credentials, a KMS Keyring and Key are required. Those will be created if they don't exist (jigquery.jigquery). If you want to provide existing ones, add `--keyring [yourKeyRing] --key [yourKey]` to the call below.
 
-```
-cli -mode deploy -i
+After it was provided with all required information, the program will encrypt your Jira credentials, deploy the Cloud Function and create the respective Pub/Sub and Cloud Scheduler instances to run it once a day.
+
+```bash
+GOOGLE_CLOUD_PROJECT={{project-id}} ./cli -mode deploy -i
 ```
