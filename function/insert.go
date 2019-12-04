@@ -49,7 +49,7 @@ func InsertIssues(ctx context.Context, env Environment) error {
 		return err
 	}
 
-	log.From(ctx).Debug("fetching issues")
+	log.From(ctx).Info("fetching issues")
 	issues, err := jira.Issues(ctx, exec.Timestamp)
 	if err != nil {
 		log.From(ctx).Error("fetching issues", zap.Error(err))
@@ -65,7 +65,7 @@ func InsertIssues(ctx context.Context, env Environment) error {
 		return err
 	}
 
-	log.From(ctx).Debug("inserting")
+	log.From(ctx).Info("inserting")
 	if err := bigquery.Insert(ctx, converted); err != nil {
 		log.From(ctx).Error("inserting", zap.Error(err))
 		return err
