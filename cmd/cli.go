@@ -59,7 +59,7 @@ func main() {
 				log.From(ctx).Fatal("deploying", zap.Error(err))
 			}
 		case "schema":
-			if err := uploadSchema(ctx); err != nil {
+			if _, err := uploadSchema(ctx); err != nil {
 				log.From(ctx).Fatal("deploying", zap.Error(err))
 			}
 		default:

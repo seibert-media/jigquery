@@ -95,7 +95,8 @@ func Deploy(ctx context.Context, project string) error {
 		}
 	}
 
-	if err := uploadSchema(ctx); err != nil {
+	schemaPath, err := uploadSchema(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -173,7 +174,7 @@ func Deploy(ctx context.Context, project string) error {
 			"JIRA_AUTH_SECRET":   auth.Secret,
 			"JIRA_PROJECT":       *jiraProject,
 			"SCHEMA_BUCKET":      *googleProject,
-			"SCHEMA_PATH":        "schemas/gd_test.json",
+			"SCHEMA_PATH":        schemaPath,
 			"BIGQUERY_PROJECT":   *googleProject,
 			"BIGQUERY_DATASET":   *bigQueryDataset,
 			"BIGQUERY_TABLE":     *bigQueryTable,
@@ -227,36 +228,38 @@ func validateFlags() error {
 	return nil
 }
 
-func uploadSchema(ctx context.Context) error {
+func uploadSchema(ctx context.Context) (string, error) {
 
 	if len(*schemaFile) < 1 {
-		return errors.New("missing -schemaFile")
+		return "", errors.New("missing -schemaFile")
 	}
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	obj := client.Bucket(*googleProject).Object(fmt.Sprintf("schemas/%s--%s_%s.json", *jiraProject, *bigQueryDataset, *bigQueryTable))
+	schemaPath := fmt.Sprintf("schemas/%s--%s_%s.json", *jiraProject, *bigQueryDataset, *bigQueryTable)
+
+	obj := client.Bucket(*googleProject).Object(schemaPath)
 
 	log.From(ctx).Info("uploading schema", zap.String("file", *schemaFile), zap.String("destination", fmt.Sprintf("gs://%s/%s", obj.BucketName(), obj.ObjectName())))
 	writer := obj.NewWriter(ctx)
 
 	file, err := os.OpenFile(*schemaFile, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if _, err := io.Copy(writer, file); err != nil {
-		return err
+		return "", err
 	}
 
 	if err := writer.Close(); err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return schemaPath, nil
 }
 
 func uploadCode(ctx context.Context, url string) error {
