@@ -10,7 +10,7 @@ This cloud function stores the issues from a Jira project with the provided sche
 
 The schema is defined as a JSON array. The array consists of field definitions, with a single field definition looking like this:
 
-```json
+```js
 {
   "name": "issue", // name of the field in bigquery
   "type": "string", // data type of the field in bigquery (see Types section)
