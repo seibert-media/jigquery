@@ -65,3 +65,11 @@ A separate table is being checked for the last time the function executed and th
 
 From those issues, their fields get extracted based on the schema and all resulting entries get streamed into the BigQuery table.
 Finally the execution timestamp gets recorded and the function terminates.
+
+## TODOs
+
+- Add an implementation using Jira Webhooks as the current approach does not work well for big numbers of issues due to the Cloud Function timeout.
+- Store deployments locally for easy redeployment
+- Maybe also deploy Cloud Build Jobs to redeploy on new versions
+- Allow setting memory limit
+- Only fetch fields from Jira that are in the schema
