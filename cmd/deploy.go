@@ -20,8 +20,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/seibert-media/golibs/log"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudfunctions/v1"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iam/v1"
 	schedulerpb "google.golang.org/genproto/googleapis/cloud/scheduler/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -147,6 +150,12 @@ func Deploy(ctx context.Context, project string) error {
 		return err
 	}
 
+	log.From(ctx).Debug("creating service account")
+	serviceAccount, err := CreateServiceAccount(ctx, project)
+	if err != nil {
+		return err
+	}
+
 	function := &cloudfunctions.CloudFunction{
 		Name:    fmt.Sprintf("%s/functions/%s", location, functionName),
 		Runtime: "go111",
@@ -154,10 +163,11 @@ func Deploy(ctx context.Context, project string) error {
 			EventType: "providers/cloud.pubsub/eventTypes/topic.publish",
 			Resource:  topic,
 		},
-		EntryPoint:      "InsertIssues",
-		MaxInstances:    1,
-		Timeout:         "9s",
-		SourceUploadUrl: uploadURL.UploadUrl,
+		EntryPoint:          "InsertIssues",
+		MaxInstances:        1,
+		Timeout:             "540s",
+		ServiceAccountEmail: serviceAccount,
+		SourceUploadUrl:     uploadURL.UploadUrl,
 		EnvironmentVariables: map[string]string{
 			"JIRA_AUTH_RESOURCE": auth.Resource,
 			"JIRA_AUTH_SECRET":   auth.Secret,
@@ -321,6 +331,69 @@ func uploadCode(ctx context.Context, url string) error {
 
 	return nil
 
+}
+
+// CreateServiceAccount with the required role bindings and return it's mail
+func CreateServiceAccount(ctx context.Context, project string) (string, error) {
+	client, err := google.DefaultClient(ctx, iam.CloudPlatformScope)
+	if err != nil {
+		return "", err
+	}
+
+	iamService, err := iam.New(client)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := iamService.Projects.ServiceAccounts.Create(fmt.Sprintf("projects/%s", project), &iam.CreateServiceAccountRequest{
+		AccountId: "jigquery",
+		ServiceAccount: &iam.ServiceAccount{
+			DisplayName: "jigquery",
+		},
+	}).Context(ctx).Do(); err != nil && !isExists(err) {
+		return "", errors.Wrap(err, "creating service account")
+	}
+
+	mail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", "jigquery", project)
+
+	resourceManager, err := cloudresourcemanager.NewService(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	policy, err := resourceManager.Projects.GetIamPolicy(project, &cloudresourcemanager.GetIamPolicyRequest{}).Context(ctx).Do()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching policy")
+	}
+
+	bindings := []*cloudresourcemanager.Binding{
+		{
+			Members: []string{fmt.Sprintf("serviceAccount:%s", mail)},
+			Role:    "roles/cloudkms.cryptoKeyDecrypter",
+		},
+		{
+			Members: []string{fmt.Sprintf("serviceAccount:%s", mail)},
+			Role:    "roles/bigquery.admin",
+		},
+		{
+			Members: []string{fmt.Sprintf("serviceAccount:%s", mail)},
+			Role:    "roles/storage.objectViewer",
+		},
+		{
+			Members: []string{fmt.Sprintf("serviceAccount:%s", mail)},
+			Role:    "roles/cloudfunctions.serviceAgent",
+		},
+	}
+
+	policy.Bindings = append(policy.Bindings, bindings...)
+
+	if _, err := resourceManager.Projects.SetIamPolicy(project, &cloudresourcemanager.SetIamPolicyRequest{
+		Policy: policy,
+	}).Context(ctx).Do(); err != nil {
+		return "", errors.Wrap(err, "updating policy")
+	}
+
+	return mail, nil
 }
 
 func isExists(err error) bool {

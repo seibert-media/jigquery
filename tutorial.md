@@ -21,7 +21,18 @@ gcloud config set project {{project-id}}
 
 ## Enable the required APIs
 
-<walkthrough-enable-apis apis="cloudfunctions.googleapis.com,cloudkms.googleapis.com,cloudscheduler.googleapis.com,storage_component,storage_api,bigquery,pubsub"></walkthrough-enable-apis>
+<walkthrough-enable-apis apis="iam.googleapis.com,cloudfunctions.googleapis.com,cloudkms.googleapis.com,cloudscheduler.googleapis.com,storage_component,storage_api,bigquery,pubsub"></walkthrough-enable-apis>
+
+```bash
+gcloud services --project smedia-business-intelligence enable \
+iam.googleapis.com \
+cloudkms.googleapis.com \
+cloudscheduler.googleapis.com \
+cloudfunctions.googleapis.com \
+storage_component storage_api \
+bigquery \
+pubsub
+```
 
 ## Create your Schema
 
