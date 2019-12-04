@@ -212,7 +212,13 @@ func (extractor FieldExtractor) extractField(field FieldSchema, from, into map[s
 				return newPathError(fieldPath[i], fieldPath[:i])
 			}
 
-			into[field.Name] = cur
+			// set empty repeated fields to an empty list as bigquery does not like nulled repeated fields
+			// ref: https://github.com/googleapis/google-cloud-python/issues/9602
+			if cur == nil && field.Repeated {
+				into[field.Name] = []interface{}{}
+			} else {
+				into[field.Name] = cur
+			}
 		}
 	}
 
